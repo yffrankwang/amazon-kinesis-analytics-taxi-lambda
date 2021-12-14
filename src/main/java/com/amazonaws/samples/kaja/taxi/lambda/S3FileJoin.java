@@ -112,9 +112,10 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 		private final S3Client s3;
 		private final Iterator<S3Object> s3Objects;
 
-		public S3JoinInputStream(S3Client s3, List<S3Object> s3objs) {
+		public S3JoinInputStream(S3Client s3, List<S3Object> s3objs) throws IOException {
 			this.s3 = s3;
 			this.s3Objects = s3objs.iterator();
+			nextS3Object();
 		}
 
 		@Override
