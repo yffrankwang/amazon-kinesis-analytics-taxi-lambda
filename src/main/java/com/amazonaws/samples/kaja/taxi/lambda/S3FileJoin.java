@@ -13,6 +13,7 @@ import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.math.NumberUtils;
+import org.apache.commons.lang3.time.DateUtils;
 import org.apache.commons.lang3.time.FastDateFormat;
 
 import com.amazonaws.services.lambda.runtime.Context;
@@ -30,6 +31,7 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 	private static final String bucketRegion = "us-east-1";
 	private static final String bucketName = "tlc-stack-artifactbucket-wwus3ytvirwq";
+	private static final FastDateFormat DATEFMT = FastDateFormat.getInstance("yyyyMMdd");
 
 	@Override
 	public String handleRequest(Map<String, Object> input, Context context) {
@@ -50,20 +52,19 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 		LOG.log("  Total files: " + s3objs.size());
 		LOG.log("  Total size : " + df.format(sumSize));
 
-		FastDateFormat fdf = FastDateFormat.getInstance("yyyyMMdd");
-		String key = "lambda-output/" + fdf.format(System.currentTimeMillis()) + ".csv";
+		String key = "lambda-output/" + DATEFMT.format(System.currentTimeMillis()) + ".csv";
 
 		System.out.println("-------------------------------");
 		LOG.log("Start join S3 Objects and save to " + key);
 
 		try {
 			S3JoinInputStream sjis = new S3JoinInputStream(s3, s3objs);
-			
+
 			PutObjectRequest objectRequest = PutObjectRequest.builder()
 				.bucket(bucketName)
 				.key(key)
 				.build();
-			
+
 			s3.putObject(objectRequest, RequestBody.fromInputStream(sjis, sumSize));
 		} catch (Exception e) {
 			LOG.log(ExceptionUtils.getStackTrace(e));
@@ -77,7 +78,9 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 	}
 
 	public static List<S3Object> listS3Objects(S3Client s3) {
-		String prefix = "kinesis-output/20211213";
+		long yesterday = System.currentTimeMillis() - DateUtils.MILLIS_PER_DAY;
+
+		String prefix = "kinesis-output/" + DATEFMT.format(yesterday);
 
 		ListObjectsV2Request request = ListObjectsV2Request.builder().bucket(bucketName).prefix(prefix).build();
 		Iterator<S3Object> s3ObjIter = s3.listObjectsV2Paginator(request).contents().iterator();
@@ -151,7 +154,7 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 					return -1;
 				}
 			}
-			
+
 			return -1;
 		}
 
@@ -162,15 +165,15 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 				System.out.println(msg);
 			}
 		}
-		
+
 		private boolean nextS3Object() throws IOException {
 			while (s3Objects.hasNext()) {
 				// if another object has been previously read, close it before opening another one
 				safeClose();
-				
+
 				// try to open the next S3 object
 				S3Object s3Object = s3Objects.next();
-		
+
 				log("---------------------------------------------------");
 				log("reading object s3://" + bucketName + "/" + s3Object.key());
 				GetObjectRequest request = GetObjectRequest.builder().bucket(bucketName).key(s3Object.key()).build();
@@ -181,7 +184,6 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 			log("no next s3 object");
 			return false;
 		}
-		
 
 		public void safeClose() {
 			if (istream != null) {
@@ -190,7 +192,7 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 				} catch (IOException e) {
 					log("failed to close object: " + e.getMessage());
 				}
-				
+
 				istream = null;
 			}
 		}
@@ -217,22 +219,21 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 		System.out.println("  Total files: " + s3objs.size());
 		System.out.println("  Total size : " + df.format(sumSize));
 
-		FastDateFormat fdf = FastDateFormat.getInstance("yyyyMMdd");
-		String key = "lambda-output/" + fdf.format(System.currentTimeMillis()) + ".csv";
+		String key = "lambda-output/" + DATEFMT.format(System.currentTimeMillis()) + ".csv";
 
 		System.out.println();
 		System.out.println("-------------------------------");
 		System.out.println("Start join S3 Objects and save to " + key);
 
 		S3JoinInputStream sjis = new S3JoinInputStream(s3, s3objs);
-		
+
 		PutObjectRequest objectRequest = PutObjectRequest.builder()
 			.bucket(bucketName)
 			.key(key)
 			.build();
-		
+
 		s3.putObject(objectRequest, RequestBody.fromInputStream(sjis, sumSize));
-		
+
 		System.out.println("-------------------------------");
 		System.out.println("Complete save to " + key);
 	}
