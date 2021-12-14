@@ -57,8 +57,9 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 		System.out.println("-------------------------------");
 		LOG.log("Start join S3 Objects and save to " + key);
 
+		S3JoinInputStream sjis = null;
 		try {
-			S3JoinInputStream sjis = new S3JoinInputStream(s3, s3objs);
+			sjis = new S3JoinInputStream(LOG, s3, s3objs);
 
 			PutObjectRequest objectRequest = PutObjectRequest.builder()
 				.bucket(bucketName)
@@ -69,6 +70,10 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 		} catch (Exception e) {
 			LOG.log(ExceptionUtils.getStackTrace(e));
 			return "500 ERROR";
+		} finally {
+			if (sjis != null) {
+				sjis.safeClose();
+			}
 		}
 
 		LOG.log("-------------------------------");
@@ -92,7 +97,7 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 
 		s3objs.sort(new Comparator<S3Object>() {
 			/**
-			 * file name: part-{PartNo}-{SpliltNo}
+			 * file name: prefix-{PartNo}-{SplitNo}
 			 * compapre order:
 			 * 1. {SplitNo}
 			 * 2. {PartNo}
@@ -140,12 +145,13 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 	}
 
 	public static class S3JoinInputStream extends InputStream {
-		private LambdaLogger LOG;
-		private InputStream istream;
+		private final LambdaLogger LOG;
 		private final S3Client s3;
 		private final Iterator<S3Object> s3Objects;
+		private InputStream istream;
 
-		public S3JoinInputStream(S3Client s3, List<S3Object> s3objs) throws IOException {
+		public S3JoinInputStream(LambdaLogger log, S3Client s3, List<S3Object> s3objs) throws IOException {
+			this.LOG = log;
 			this.s3 = s3;
 			this.s3Objects = s3objs.iterator();
 			nextS3Object();
@@ -233,7 +239,7 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 		System.out.println("-------------------------------");
 		System.out.println("Start join S3 Objects and save to " + key);
 
-		S3JoinInputStream sjis = new S3JoinInputStream(s3, s3objs);
+		S3JoinInputStream sjis = new S3JoinInputStream(null, s3, s3objs);
 
 		PutObjectRequest objectRequest = PutObjectRequest.builder()
 			.bucket(bucketName)
@@ -244,5 +250,7 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 
 		System.out.println("-------------------------------");
 		System.out.println("Complete save to " + key);
+
+		sjis.safeClose();
 	}
 }
