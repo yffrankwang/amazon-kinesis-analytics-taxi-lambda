@@ -1,5 +1,6 @@
 package com.amazonaws.samples.kaja.taxi.lambda;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -89,10 +90,17 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 		final S3Client s3 = S3Client.builder().region(Region.of(bucketRegion)).build();
 		
 		List<S3Object> s3objs = listS3Objects(s3);
-		
+	
+		DecimalFormat df = new DecimalFormat("###,###");
+		long sumSize = 0;
 		for (S3Object o : s3objs) {
-			System.out.println(String.format("%20s  %d", o.key(), o.size()));
+			sumSize += o.size();
+			System.out.println(String.format("%30s  %s", o.key(), df.format(o.size())));
 		}
+		
+		System.out.println("-------------------------------");
+		System.out.println("  Total files: " + s3objs.size());
+		System.out.println("  Total size : " + df.format(sumSize));
 	}
 }
 
