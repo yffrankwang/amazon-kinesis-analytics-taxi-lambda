@@ -91,12 +91,20 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 		}
 
 		s3objs.sort(new Comparator<S3Object>() {
+			/**
+			 * file name: part-{PartNo}-{SpliltNo}
+			 * compapre order:
+			 * 1. {SplitNo}
+			 * 2. {PartNo}
+			 * 
+			 * example: part-0-1 < part-0-10
+			 */
 			@Override
 			public int compare(S3Object o1, S3Object o2) {
 				String p1 = StringUtils.substringBeforeLast(o1.key(), "/");
 				String p2 = StringUtils.substringBeforeLast(o2.key(), "/");
-				String n1 = StringUtils.substringAfterLast(o1.key(), '/');
-				String n2 = StringUtils.substringAfterLast(o2.key(), '/');
+				String n1 = StringUtils.substringBefore(StringUtils.substringAfterLast(o1.key(), '/'), '.');
+				String n2 = StringUtils.substringBefore(StringUtils.substringAfterLast(o2.key(), '/'), '.');
 
 				int c = p1.compareTo(p2);
 				if (c != 0) {
