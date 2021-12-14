@@ -47,15 +47,24 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 		s3objs.sort(new Comparator<S3Object>() {
 			@Override
 			public int compare(S3Object o1, S3Object o2) {
-				String[] ss1 = StringUtils.split(o1.key(), '-');
-				String[] ss2 = StringUtils.split(o1.key(), '-');
+				String p1 = StringUtils.substringBeforeLast(o1.key(), "/");
+				String p2 = StringUtils.substringBeforeLast(o2.key(), "/");
+				String n1 = StringUtils.substringAfterLast(o1.key(), '/');
+				String n2 = StringUtils.substringAfterLast(o2.key(), '/');
+
+				int c = p1.compareTo(p2);
+				if (c != 0) {
+					return c;
+				}
+
+				String[] ss1 = StringUtils.split(n1, '-');
+				String[] ss2 = StringUtils.split(n2, '-');
 				
 				if (ss1.length != ss2.length) {
 					return ss1.length - ss2.length;
 				}
 				
-				int c;
-				for (int i = 0; i < ss1.length; i++) {
+				for (int i = ss1.length - 1; i >= 0 ; i--) {
 					String s1 = ss1[i];
 					String s2 = ss2[i];
 					
