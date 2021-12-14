@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.commons.lang3.time.FastDateFormat;
 
@@ -46,10 +47,31 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 		}
 
 		LOG.log("-------------------------------");
-		LOG.log("  Total files: "
-			+ s3objs.size());
-		LOG.log("  Total size : "
-			+ df.format(sumSize));
+		LOG.log("  Total files: " + s3objs.size());
+		LOG.log("  Total size : " + df.format(sumSize));
+
+		FastDateFormat fdf = FastDateFormat.getInstance("yyyyMMdd");
+		String key = "lambda-output/" + fdf.format(System.currentTimeMillis()) + ".csv";
+
+		System.out.println("-------------------------------");
+		LOG.log("Start join S3 Objects and save to " + key);
+
+		try {
+			S3JoinInputStream sjis = new S3JoinInputStream(s3, s3objs);
+			
+			PutObjectRequest objectRequest = PutObjectRequest.builder()
+				.bucket(bucketName)
+				.key(key)
+				.build();
+			
+			s3.putObject(objectRequest, RequestBody.fromInputStream(sjis, sumSize));
+		} catch (Exception e) {
+			LOG.log(ExceptionUtils.getStackTrace(e));
+			return "500 ERROR";
+		}
+
+		LOG.log("-------------------------------");
+		LOG.log("Complete save to " + key);
 
 		return "200 OK";
 	}
@@ -188,14 +210,12 @@ public class S3FileJoin implements RequestHandler<Map<String, Object>, String> {
 		long sumSize = 0;
 		for (S3Object o : s3objs) {
 			sumSize += o.size();
-			System.out.println(String.format("%50s  %-20s", o.key(), df.format(o.size())));
+			System.out.println(String.format("%-50s  %20s", o.key(), df.format(o.size())));
 		}
 
 		System.out.println("-------------------------------");
-		System.out.println("  Total files: "
-			+ s3objs.size());
-		System.out.println("  Total size : "
-			+ df.format(sumSize));
+		System.out.println("  Total files: " + s3objs.size());
+		System.out.println("  Total size : " + df.format(sumSize));
 
 		FastDateFormat fdf = FastDateFormat.getInstance("yyyyMMdd");
 		String key = "lambda-output/" + fdf.format(System.currentTimeMillis()) + ".csv";
